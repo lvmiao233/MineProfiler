@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "mineprofiler",
+  "version": "1.0.0",
+  "name": "MineProfiler",
+  "description": "A lightweight performance profiling mod for Minecraft 1.21",
+  "authors": [
+    "MineProfiler Team"
+  ],
+  "contact": {
+    "homepage": "https://example.com/mineprofiler",
+    "issues": "https://example.com/mineprofiler/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/mineprofiler/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.mineprofiler.MineProfilerMod"
+    ]
+  },
+  "mixins": [
+    "mineprofiler.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.22",
+    "minecraft": "1.21.x",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+} 

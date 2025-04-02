@@ -1,0 +1,124 @@
+# 忽略 Maven 构建产生的 target 目录
+/target/
+/build/  # 有些项目可能会使用 build 目录替代 target，也一并忽略
+
+# 忽略 Maven 项目的 IDE 相关文件 (根据你常用的 IDE 选择性添加)
+
+### IntelliJ IDEA ###
+.idea/
+*.iml
+*.iws
+*.ipr
+
+### Eclipse ###
+.classpath
+.project
+.settings/
+.apt_generated/
+.factorypath/
+
+### VS Code ###
+.vscode/
+
+# 忽略 Maven Wrapper 相关的文件 (如果使用了 Maven Wrapper)
+.mvn/wrapper/target/
+.mvn/wrapper/!maven-wrapper.jar # 保留 maven-wrapper.jar 文件，wrapper机制需要它
+mvnw
+mvnw.cmd
+
+# 忽略 Java 编译产生的 .class 文件 (通常 target 已经涵盖)
+*.class
+
+# 忽略 JAR, WAR, EAR, ZIP 等打包文件 (通常 target 已经涵盖)
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.nar
+*.lib
+
+# 忽略日志文件
+*.log
+*.out
+*.err
+
+# 忽略临时文件和备份文件
+*.tmp
+*.swp
+*.bak
+*~
+\#*#
+.~*
+*.orig
+*.rej
+
+# 忽略操作系统生成的文件
+.DS_Store         # macOS 目录服务存储文件
+Thumbs.db        # Windows 缩略图数据库
+ehthumbs.db      # Windows 加速缩略图数据库
+
+# 忽略 Maven 下载的本地仓库的 _remote.repositories 文件，
+# 如果你不想跟踪本地仓库的元数据，可以添加
+# .m2/repository/*/*/_remote.repositories
+
+# 忽略任何 .prefs 文件 (Java 首选项文件)
+*.prefs
+
+# 忽略 Ctags 文件
+tags
+TAGS
+
+# 忽略 Javadoc 输出 (如果生成 Javadoc 到项目目录)
+/apidocs/
+/javadoc/
+
+# 忽略 Checkstyle 报告 (如果使用了 Checkstyle 并输出到项目目录)
+/checkstyle-result.xml
+/checkstyle-errors.xml
+
+# 忽略 FindBugs 报告 (如果使用了 FindBugs 并输出到项目目录)
+/findbugs.xml
+
+# 忽略 PMD 报告 (如果使用了 PMD 并输出到项目目录)
+/pmd.xml
+
+# 忽略 SonarQube 相关文件 (如果使用了 SonarQube 集成)
+.sonar/
+
+# 如果使用了 Docker，可以忽略 Docker 构建上下文和临时文件
+Dockerfile.args
+docker-compose.override.yml
+docker-compose.prod.yml
+docker-compose.staging.yml
+docker-compose.ci.yml
+docker-compose.test.yml
+docker-compose.dev.yml
+*.dockerfile
+*.dockerignore
+
+# 如果使用了 node.js 或前端相关工具，可以忽略 node_modules 等
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# 如果使用了 Gradle，可以忽略 Gradle 构建目录和缓存
+.gradle/
+/build/  # 再次提及，以防有些项目使用 build 代替 target
+gradle-wrapper.jar
+gradle-wrapper.properties
+*.lockfile
+
+# 忽略其他可能的构建工具或框架的输出目录或临时文件
+/dist/
+/out/
+/temp/
+/tmp/
+
+# 可以添加自定义的忽略规则，例如特定的配置文件，
+# 但一般建议配置文件也纳入版本控制，除非包含敏感信息。
+# 例如：
+# config.properties # 如果你确实不想跟踪这个文件，可以取消注释
+
+# 保持 .gitignore 文件本身在版本控制中
+!*.gitignore
