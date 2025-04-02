@@ -64,7 +64,7 @@ public class TestConfig {
     public static class WorldConfig {
         private String seed = "12345";
         private String worldName = "PerfTest";
-        private String gameMode = "creative";
+        private String gameMode = "spectator"; // 默认改为旁观模式
         
         public String getSeed() {
             return seed;
@@ -82,9 +82,13 @@ public class TestConfig {
     // 测试参数类
     public static class TestParameters {
         private int duration = 300; // 测试持续时间（秒）
-        private String movementType = "straight_line"; // 移动类型
+        private String movementType = "straight_line"; // 移动类型: straight_line, random, circular
         private double movementSpeed = 1.0; // 移动速度
         private boolean exitAfterTest = false; // 测试后是否退出游戏
+        private boolean useSpectatorMode = true; // 是否使用旁观模式
+        private double flyHeight = 70.0; // 飞行高度
+        private boolean autoRotateCamera = true; // 是否自动旋转相机
+        private double rotationSpeed = 0.5; // 相机旋转速度
         
         public int getDuration() {
             return duration;
@@ -100,6 +104,22 @@ public class TestConfig {
         
         public boolean isExitAfterTest() {
             return exitAfterTest;
+        }
+        
+        public boolean isUseSpectatorMode() {
+            return useSpectatorMode;
+        }
+        
+        public double getFlyHeight() {
+            return flyHeight;
+        }
+        
+        public boolean isAutoRotateCamera() {
+            return autoRotateCamera;
+        }
+        
+        public double getRotationSpeed() {
+            return rotationSpeed;
         }
     }
     

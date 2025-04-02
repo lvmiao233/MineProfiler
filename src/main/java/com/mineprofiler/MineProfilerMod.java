@@ -2,11 +2,13 @@ package com.mineprofiler;
 
 import com.mineprofiler.config.TestConfig;
 import com.mineprofiler.metrics.LightweightMetrics;
+import com.mineprofiler.automation.SimplePlayerController;
 // 保留导入但不使用
 // import com.mineprofiler.world.AutoWorldManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.GameMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +24,7 @@ public class MineProfilerMod implements ClientModInitializer {
     private LightweightMetrics metrics;
     // 保留定义但不使用
     // private AutoWorldManager worldManager;
+    private SimplePlayerController playerController;
     private boolean testRunning = false;
     private long testStartTime = 0;
     private long lastFrameTimeUpdate = 0;
@@ -50,13 +53,16 @@ public class MineProfilerMod implements ClientModInitializer {
         // 初始化指标收集器
         this.metrics = new LightweightMetrics(this.config);
         
+        // 初始化玩家控制器
+        this.playerController = new SimplePlayerController(this.config);
+        
         // 注释掉自动世界管理器的初始化
         // this.worldManager = new AutoWorldManager(this.config);
         
         // 注册Tick事件
         ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
         
-        LOGGER.info("MineProfiler initialized successfully (auto features disabled)");
+        LOGGER.info("MineProfiler initialized successfully with auto movement");
     }
     
     private void onClientTick(MinecraftClient client) {
@@ -65,13 +71,16 @@ public class MineProfilerMod implements ClientModInitializer {
             startTest();
         }
         
-        // 如果测试正在运行，检查是否需要结束
-        if (testRunning) {
+        // 如果测试正在运行，更新玩家移动和检查是否需要结束
+        if (testRunning && client != null && client.player != null) {
             long currentTime = System.currentTimeMillis();
             long elapsedSeconds = (currentTime - testStartTime) / 1000;
             
-            // 由于GameRendererMixin被禁用，在这里手动更新FPS和帧时间
+            // 更新性能指标
             updatePerformanceMetrics(client);
+            
+            // 更新玩家移动
+            playerController.updatePlayerMovement();
             
             if (elapsedSeconds >= config.getTestDuration()) {
                 endTest();
@@ -116,6 +125,13 @@ public class MineProfilerMod implements ClientModInitializer {
             outputDir.mkdirs();
         }
         
+        // 切换到旁观模式
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.interactionManager != null) {
+            client.interactionManager.setGameMode(GameMode.SPECTATOR);
+            LOGGER.info("Switched to spectator mode");
+        }
+        
         // 启动指标收集
         metrics.startCollection();
     }
@@ -125,6 +141,9 @@ public class MineProfilerMod implements ClientModInitializer {
         
         LOGGER.info("Ending performance test...");
         testRunning = false;
+        
+        // 停止玩家移动
+        playerController.stopMovement();
         
         // 停止指标收集
         metrics.stopCollection();

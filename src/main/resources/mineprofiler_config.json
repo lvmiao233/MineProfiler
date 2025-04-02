@@ -1,0 +1,22 @@
+{
+  "world": {
+    "seed": "12345",
+    "worldName": "PerfTest",
+    "gameMode": "spectator"
+  },
+  "test": {
+    "duration": 300,
+    "movementType": "circular",
+    "movementSpeed": 1.0,
+    "exitAfterTest": false,
+    "useSpectatorMode": true,
+    "flyHeight": 70.0,
+    "autoRotateCamera": true,
+    "rotationSpeed": 0.5
+  },
+  "metrics": {
+    "sampleInterval": 1,
+    "outputDirectory": "./perfdata",
+    "outputFormat": "csv"
+  }
+} 
