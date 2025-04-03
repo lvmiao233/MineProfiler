@@ -4,13 +4,9 @@
   "package": "com.mineprofiler.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    // "GameRendererMixin", // 暂时禁用，直到我们找到正确的类型
+    "GameRendererMixin",
     "MinecraftClientMixin",
     "ClientPlayerEntityMixin"
-    // 自动化功能相关的Mixin，暂时禁用
-    // "TitleScreenMixin",
-    // "SelectWorldScreenMixin",
-    // "CreateWorldScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

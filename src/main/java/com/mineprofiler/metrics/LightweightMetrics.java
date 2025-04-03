@@ -1,45 +1,79 @@
 package com.mineprofiler.metrics;
 
 import com.mineprofiler.MineProfilerMod;
-import com.mineprofiler.config.TestConfig;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientChunkManager;
-import net.minecraft.world.chunk.ChunkManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 
 /**
- * 轻量级性能指标收集器
- * 收集主要性能指标并记录到文件
+ * 简化版的轻量级性能指标收集器
+ * 收集基本信息并保存到CSV文件
  */
 public class LightweightMetrics {
-    private final TestConfig config;
+    private static final Logger LOGGER = LogManager.getLogger("LightweightMetrics");
     private final MinecraftClient client;
     
-    // 性能数据
-    private volatile double currentFps = 0;
-    private volatile double lastMspt = 0;
-    private volatile double lastFrameTimeMs = 0;
+    // 性能指标
+    private double currentFps = 0.0;
+    private double averageFps = 0.0;
+    private double minFps = Double.MAX_VALUE;
+    private double maxFps = 0.0;
     
-    // 采样计时器
+    private double currentFrameTime = 0.0;
+    private double averageFrameTime = 0.0;
+    private double minFrameTime = Double.MAX_VALUE;
+    private double maxFrameTime = 0.0;
+    
+    private int frameCount = 0;
+    
+    // CSV数据导出
     private Timer samplingTimer;
     private BufferedWriter dataWriter;
-    
-    // 文件名
     private String outputFilename;
+    private static final int SAMPLE_INTERVAL_MS = 1000; // 采样间隔，默认1秒
     
-    public LightweightMetrics(TestConfig config) {
-        this.config = config;
+    /**
+     * 默认构造函数
+     */
+    public LightweightMetrics() {
         this.client = MinecraftClient.getInstance();
+        LOGGER.info("轻量级性能指标收集器已初始化");
+    }
+    
+    /**
+     * 更新FPS指标
+     */
+    public void updateFps(double fps) {
+        this.currentFps = fps;
+        this.minFps = Math.min(minFps, fps);
+        this.maxFps = Math.max(maxFps, fps);
+        
+        frameCount++;
+        // 更新平均值
+        double delta = fps - averageFps;
+        averageFps += delta / frameCount;
+    }
+    
+    /**
+     * 更新帧时间指标
+     */
+    public void updateFrameTime(double frameTimeMs) {
+        this.currentFrameTime = frameTimeMs;
+        this.minFrameTime = Math.min(minFrameTime, frameTimeMs);
+        this.maxFrameTime = Math.max(maxFrameTime, frameTimeMs);
+        
+        // 更新平均值
+        double delta = frameTimeMs - averageFrameTime;
+        averageFrameTime += delta / frameCount;
     }
     
     /**
@@ -50,32 +84,30 @@ public class LightweightMetrics {
         try {
             setupOutputFile();
         } catch (IOException e) {
-            MineProfilerMod.LOGGER.error("Failed to create output file", e);
+            LOGGER.error("无法创建输出文件", e);
             return;
         }
         
         // 写入CSV头
         try {
-            dataWriter.write("timestamp,fps,mspt,frameTime,playerX,playerY,playerZ,loadedChunks,visibleEntities\n");
+            dataWriter.write("timestamp,fps,frameTime,playerX,playerY,playerZ,loadedChunks\n");
             dataWriter.flush();
         } catch (IOException e) {
-            MineProfilerMod.LOGGER.error("Failed to write CSV header", e);
+            LOGGER.error("无法写入CSV头", e);
             closeWriter();
             return;
         }
         
         // 启动计时器进行定期采样
-        int intervalMs = config.getMetrics().getSampleInterval() * 1000;
         samplingTimer = new Timer("MetricsSampler");
         samplingTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 collectAndWriteMetrics();
             }
-        }, intervalMs, intervalMs);
+        }, SAMPLE_INTERVAL_MS, SAMPLE_INTERVAL_MS);
         
-        MineProfilerMod.LOGGER.info("Started metrics collection, sampling every " + 
-                config.getMetrics().getSampleInterval() + " seconds");
+        LOGGER.info("已开始收集性能指标，每 " + SAMPLE_INTERVAL_MS/1000 + " 秒采样一次");
     }
     
     /**
@@ -88,7 +120,10 @@ public class LightweightMetrics {
         }
         
         closeWriter();
-        MineProfilerMod.LOGGER.info("Stopped metrics collection, data saved to " + outputFilename);
+        LOGGER.info("已停止收集性能指标，数据保存至 " + outputFilename);
+        
+        // 打印性能报告
+        printReport();
     }
     
     /**
@@ -98,7 +133,8 @@ public class LightweightMetrics {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
         String timestamp = dateFormat.format(new Date());
         
-        File outputDir = new File(config.getMetrics().getOutputDirectory());
+        // 确保输出目录存在
+        File outputDir = new File("performance_data");
         if (!outputDir.exists()) {
             outputDir.mkdirs();
         }
@@ -115,7 +151,7 @@ public class LightweightMetrics {
             try {
                 dataWriter.close();
             } catch (IOException e) {
-                MineProfilerMod.LOGGER.error("Error closing data writer", e);
+                LOGGER.error("关闭数据写入器时出错", e);
             }
             dataWriter = null;
         }
@@ -130,105 +166,36 @@ public class LightweightMetrics {
         try {
             // 收集数据
             long timestamp = System.currentTimeMillis();
-            double fps = currentFps; // 由GameRendererMixin更新
-            double mspt = lastMspt; // 由MinecraftClientMixin更新
-            double frameTime = lastFrameTimeMs; // 由GameRendererMixin更新
+            double fps = currentFps;
+            double frameTime = currentFrameTime;
             
+            // 收集玩家位置信息
             double playerX = client.player.getX();
             double playerY = client.player.getY();
             double playerZ = client.player.getZ();
             
             // 获取已加载区块数量
-            int loadedChunks = getLoadedChunkCount();
-            
-            // 获取可见实体数量
-            int visibleEntities = 0;
-            if (client.world != null) {
-                // Minecraft 1.21.5中getEntityCount方法已更改
-                // 手动计数实体
-                for (Object entity : client.world.getEntities()) {
-                    visibleEntities++;
-                }
-            }
+            int renderDistance = client.options.getViewDistance().getValue();
+            int loadedChunks = (2 * renderDistance + 1) * (2 * renderDistance + 1);
             
             // 写入CSV行
-            String dataLine = String.format("%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d\n",
-                    timestamp, fps, mspt, frameTime, playerX, playerY, playerZ, loadedChunks, visibleEntities);
+            String dataLine = String.format("%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n",
+                    timestamp, fps, frameTime, playerX, playerY, playerZ, loadedChunks);
             
             dataWriter.write(dataLine);
             dataWriter.flush();
         } catch (Exception e) {
-            MineProfilerMod.LOGGER.error("Error collecting or writing metrics", e);
+            LOGGER.error("收集或写入性能指标时出错", e);
         }
     }
     
     /**
-     * 获取已加载区块数量
+     * 打印性能报告
      */
-    private int getLoadedChunkCount() {
-        if (client.world == null) return 0;
-        
-        try {
-            // 尝试直接通过ClientChunkManager获取
-            ChunkManager chunkManager = client.world.getChunkManager();
-            if (chunkManager instanceof ClientChunkManager) {
-                // 尝试多种方法获取已加载区块数量
-                
-                // 方法1: 使用反射查找getLoadedChunkCount方法
-                try {
-                    Method getLoadedChunkCountMethod = ClientChunkManager.class.getDeclaredMethod("getLoadedChunkCount");
-                    getLoadedChunkCountMethod.setAccessible(true);
-                    return (int) getLoadedChunkCountMethod.invoke(chunkManager);
-                } catch (Exception ignored) {
-                    // 方法不存在，继续尝试其他方法
-                }
-                
-                // 方法2: 使用反射获取chunks字段并计算大小
-                try {
-                    Field chunksField = ClientChunkManager.class.getDeclaredField("chunks");
-                    chunksField.setAccessible(true);
-                    Object chunks = chunksField.get(chunkManager);
-                    if (chunks instanceof java.util.Map) {
-                        return ((java.util.Map<?, ?>) chunks).size();
-                    }
-                } catch (Exception ignored) {
-                    // 字段不存在或类型不匹配，继续尝试
-                }
-                
-                // 方法3: 估算区块数量
-                // 通常渲染距离为8-16区块，假设每个方向都是如此
-                int renderDistance = client.options.getViewDistance().getValue();
-                // 计算一个近似值
-                return (2 * renderDistance + 1) * (2 * renderDistance + 1);
-            }
-        } catch (Exception e) {
-            // 如果出现任何异常，使用默认值
-            MineProfilerMod.LOGGER.debug("Error getting chunk count", e);
-        }
-        
-        // 默认值：估算已加载区块数量
-        int renderDistance = client.options.getViewDistance().getValue();
-        return (2 * renderDistance + 1) * (2 * renderDistance + 1);
-    }
-    
-    /**
-     * 更新当前FPS值 (由Mixin调用)
-     */
-    public void updateFps(double fps) {
-        this.currentFps = fps;
-    }
-    
-    /**
-     * 更新帧时间 (由Mixin调用)
-     */
-    public void updateFrameTime(double frameTimeMs) {
-        this.lastFrameTimeMs = frameTimeMs;
-    }
-    
-    /**
-     * 更新MSPT值 (由Mixin调用)
-     */
-    public void updateMspt(double mspt) {
-        this.lastMspt = mspt;
+    public void printReport() {
+        LOGGER.info("===== 性能指标报告 =====");
+        LOGGER.info(String.format("平均帧率: %.2f FPS (min: %.2f, max: %.2f)", averageFps, minFps, maxFps));
+        LOGGER.info(String.format("平均帧时间: %.2f ms (min: %.2f, max: %.2f)", averageFrameTime, minFrameTime, maxFrameTime));
+        LOGGER.info("=======================");
     }
 } 

@@ -15,6 +15,9 @@ public class TestConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String CONFIG_FILENAME = "mineprofiler_config.json";
     
+    // 是否启用mod
+    private boolean enabled = true;
+    
     // 世界配置
     private WorldConfig world = new WorldConfig();
     
@@ -70,12 +73,24 @@ public class TestConfig {
             return seed;
         }
         
+        public void setSeed(String seed) {
+            this.seed = seed;
+        }
+        
         public String getWorldName() {
             return worldName;
         }
         
+        public void setWorldName(String worldName) {
+            this.worldName = worldName;
+        }
+        
         public String getGameMode() {
             return gameMode;
+        }
+        
+        public void setGameMode(String gameMode) {
+            this.gameMode = gameMode;
         }
     }
     
@@ -143,6 +158,14 @@ public class TestConfig {
     }
     
     // Getter方法
+    public boolean isEnabled() {
+        return enabled;
+    }
+    
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+    
     public WorldConfig getWorld() {
         return world;
     }
@@ -166,5 +189,15 @@ public class TestConfig {
     
     public boolean isExitAfterTest() {
         return test.isExitAfterTest();
+    }
+    
+    @Override
+    public String toString() {
+        return "TestConfig{" +
+                "enabled=" + enabled +
+                ", world=" + world.getWorldName() +
+                ", seed=" + world.getSeed() +
+                ", gameMode=" + world.getGameMode() +
+                '}';
     }
 } 

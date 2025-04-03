@@ -1,172 +1,112 @@
 package com.mineprofiler;
 
-import com.mineprofiler.config.TestConfig;
-import com.mineprofiler.metrics.LightweightMetrics;
 import com.mineprofiler.automation.SimplePlayerController;
-// 保留导入但不使用
-// import com.mineprofiler.world.AutoWorldManager;
+import com.mineprofiler.metrics.LightweightMetrics;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.world.GameMode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.fabricmc.loader.api.FabricLoader;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 
-import java.io.File;
-import java.io.IOException;
-
+/**
+ * 模组主类
+ * 简化版本：只实现两个核心功能
+ * 1. 进入世界后自动运动
+ * 2. 收集并保存性能指标到CSV文件
+ */
 public class MineProfilerMod implements ClientModInitializer {
+    // 模组ID
     public static final String MOD_ID = "mineprofiler";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    
+    // 日志
+    public static final Logger LOGGER = LogManager.getLogger("MineProfiler");
+    // 单例模式
     private static MineProfilerMod INSTANCE;
-    private TestConfig config;
-    private LightweightMetrics metrics;
-    // 保留定义但不使用
-    // private AutoWorldManager worldManager;
+    // 玩家控制器
     private SimplePlayerController playerController;
-    private boolean testRunning = false;
-    private long testStartTime = 0;
-    private long lastFrameTimeUpdate = 0;
+    // 性能指标收集器
+    private LightweightMetrics metrics;
+    // 游戏刻计数
+    private int ticks = 0;
+    // 是否已经开始收集指标
+    private boolean metricsStarted = false;
     
     @Override
     public void onInitializeClient() {
         INSTANCE = this;
-        LOGGER.info("Initializing MineProfiler...");
         
-        // 加载配置
-        try {
-            this.config = TestConfig.load();
-            LOGGER.info("Configuration loaded successfully");
-        } catch (IOException e) {
-            LOGGER.error("Failed to load configuration", e);
-            // 创建默认配置
-            this.config = TestConfig.createDefault();
-            try {
-                this.config.save();
-                LOGGER.info("Default configuration created");
-            } catch (IOException ex) {
-                LOGGER.error("Failed to save default configuration", ex);
+        // 设置日志级别为DEBUG
+        Configurator.setLevel(LOGGER.getName(), Level.DEBUG);
+        
+        LOGGER.info("MineProfiler mod 正在初始化...");
+        
+        // 初始化玩家控制器和性能指标收集器
+        this.playerController = new SimplePlayerController();
+        this.metrics = new LightweightMetrics();
+        
+        LOGGER.info("MineProfiler mod 已初始化！");
+        LOGGER.info("Minecraft版本: " + FabricLoader.getInstance().getModContainer("minecraft").get().getMetadata().getVersion());
+        
+        // 注册客户端Tick事件
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // 客户端每Tick执行一次
+            this.ticks++;
+            
+            // 如果玩家已加载
+            if (client != null && client.player != null) {
+                // 更新性能指标（每tick都更新）
+                if (client.getCurrentFps() > 0) {
+                    metrics.updateFps(client.getCurrentFps());
+                    metrics.updateFrameTime(1000.0 / client.getCurrentFps());
+                }
+                
+                // 开始收集指标数据（仅执行一次）
+                if (!metricsStarted) {
+                    LOGGER.info("开始收集性能指标数据...");
+                    metrics.startCollection();
+                    metricsStarted = true;
+                }
+                
+                // 如果未开始移动，则开始移动
+                if (!playerController.isAutoMovementActive()) {
+                    LOGGER.info("玩家已加载，启动自动移动");
+                    playerController.activateAutoMovement();
+                }
+                
+                // 已激活自动移动，更新玩家控制器
+                try {
+                    if (playerController.isAutoMovementActive()) {
+                        playerController.updatePlayerMovement();
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("更新玩家控制器时出错", e);
+                }
             }
-        }
-        
-        // 初始化指标收集器
-        this.metrics = new LightweightMetrics(this.config);
-        
-        // 初始化玩家控制器
-        this.playerController = new SimplePlayerController(this.config);
-        
-        // 注释掉自动世界管理器的初始化
-        // this.worldManager = new AutoWorldManager(this.config);
-        
-        // 注册Tick事件
-        ClientTickEvents.END_CLIENT_TICK.register(this::onClientTick);
-        
-        LOGGER.info("MineProfiler initialized successfully with auto movement");
-    }
-    
-    private void onClientTick(MinecraftClient client) {
-        // 如果游戏启动，但测试未开始，尝试启动测试
-        if (client != null && client.player != null && !testRunning) {
-            startTest();
-        }
-        
-        // 如果测试正在运行，更新玩家移动和检查是否需要结束
-        if (testRunning && client != null && client.player != null) {
-            long currentTime = System.currentTimeMillis();
-            long elapsedSeconds = (currentTime - testStartTime) / 1000;
-            
-            // 更新性能指标
-            updatePerformanceMetrics(client);
-            
-            // 更新玩家移动
-            playerController.updatePlayerMovement();
-            
-            if (elapsedSeconds >= config.getTestDuration()) {
-                endTest();
-            }
-        }
+        });
     }
     
     /**
-     * 手动更新性能指标
-     * 这是GameRendererMixin被禁用后的替代方法
+     * 获取实例
+     * @return MineProfilerMod实例
      */
-    private void updatePerformanceMetrics(MinecraftClient client) {
-        if (metrics == null) return;
-        
-        // 更新FPS
-        metrics.updateFps(client.getCurrentFps());
-        
-        // 更新帧时间（估算值，每秒更新一次）
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastFrameTimeUpdate > 1000) {
-            // 估算帧时间 = 1000ms / FPS
-            double fps = client.getCurrentFps();
-            if (fps > 0) {
-                double frameTimeMs = 1000.0 / fps;
-                metrics.updateFrameTime(frameTimeMs);
-            }
-            lastFrameTimeUpdate = currentTime;
-        }
-    }
-    
-    public void startTest() {
-        if (testRunning) return;
-        
-        LOGGER.info("Starting performance test...");
-        testRunning = true;
-        testStartTime = System.currentTimeMillis();
-        lastFrameTimeUpdate = System.currentTimeMillis();
-        
-        // 确保输出目录存在
-        File outputDir = new File(config.getOutputDirectory());
-        if (!outputDir.exists()) {
-            outputDir.mkdirs();
-        }
-        
-        // 切换到旁观模式
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.interactionManager != null) {
-            client.interactionManager.setGameMode(GameMode.SPECTATOR);
-            LOGGER.info("Switched to spectator mode");
-        }
-        
-        // 启动指标收集
-        metrics.startCollection();
-    }
-    
-    public void endTest() {
-        if (!testRunning) return;
-        
-        LOGGER.info("Ending performance test...");
-        testRunning = false;
-        
-        // 停止玩家移动
-        playerController.stopMovement();
-        
-        // 停止指标收集
-        metrics.stopCollection();
-        
-        // 可选：自动退出游戏
-        if (config.isExitAfterTest()) {
-            MinecraftClient.getInstance().stop();
-        }
-    }
-    
     public static MineProfilerMod getInstance() {
         return INSTANCE;
     }
     
-    public TestConfig getConfig() {
-        return config;
+    /**
+     * 获取玩家控制器
+     * @return 玩家控制器
+     */
+    public SimplePlayerController getPlayerController() {
+        return playerController;
     }
     
+    /**
+     * 获取性能指标收集器
+     * @return 性能指标收集器
+     */
     public LightweightMetrics getMetrics() {
         return metrics;
-    }
-    
-    public boolean isTestRunning() {
-        return testRunning;
     }
 } 
