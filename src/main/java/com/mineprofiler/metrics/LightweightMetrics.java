@@ -133,8 +133,9 @@ public class LightweightMetrics {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HHmmss");
         String timestamp = dateFormat.format(new Date());
         
-        // 确保输出目录存在
-        File outputDir = new File("performance_data");
+        // 使用Java临时目录属性获取系统临时目录
+        String tmpDir = System.getProperty("java.io.tmpdir");
+        File outputDir = new File(tmpDir, "game_play");
         if (!outputDir.exists()) {
             outputDir.mkdirs();
         }
