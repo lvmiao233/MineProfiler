@@ -8,6 +8,9 @@
     "MinecraftClientMixin",
     "ClientPlayerEntityMixin"
   ],
+  "mixins": [
+    "MinecraftServerMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

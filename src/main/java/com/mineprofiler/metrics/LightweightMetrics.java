@@ -33,7 +33,14 @@ public class LightweightMetrics {
     private double minFrameTime = Double.MAX_VALUE;
     private double maxFrameTime = 0.0;
     
+    // MSPT相关指标
+    private float currentMspt = 0.0f;
+    private float averageMspt = 0.0f;
+    private float minMspt = Float.MAX_VALUE;
+    private float maxMspt = 0.0f;
+    
     private int frameCount = 0;
+    private int msptCount = 0;
     
     // CSV数据导出
     private Timer samplingTimer;
@@ -77,6 +84,20 @@ public class LightweightMetrics {
     }
     
     /**
+     * 更新MSPT指标
+     */
+    public void updateMspt(float mspt) {
+        this.currentMspt = mspt;
+        this.minMspt = Math.min(minMspt, mspt);
+        this.maxMspt = Math.max(maxMspt, mspt);
+        
+        msptCount++;
+        // 更新平均值
+        float delta = mspt - averageMspt;
+        averageMspt += delta / msptCount;
+    }
+    
+    /**
      * 开始收集性能数据
      */
     public void startCollection() {
@@ -90,7 +111,7 @@ public class LightweightMetrics {
         
         // 写入CSV头
         try {
-            dataWriter.write("timestamp,fps,frameTime,playerX,playerY,playerZ,loadedChunks\n");
+            dataWriter.write("timestamp,fps,frameTime,mspt,playerX,playerY,playerZ,loadedChunks\n");
             dataWriter.flush();
         } catch (IOException e) {
             LOGGER.error("无法写入CSV头", e);
@@ -169,6 +190,7 @@ public class LightweightMetrics {
             long timestamp = System.currentTimeMillis();
             double fps = currentFps;
             double frameTime = currentFrameTime;
+            float mspt = currentMspt;
             
             // 收集玩家位置信息
             double playerX = client.player.getX();
@@ -180,8 +202,8 @@ public class LightweightMetrics {
             int loadedChunks = (2 * renderDistance + 1) * (2 * renderDistance + 1);
             
             // 写入CSV行
-            String dataLine = String.format("%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n",
-                    timestamp, fps, frameTime, playerX, playerY, playerZ, loadedChunks);
+            String dataLine = String.format("%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n",
+                    timestamp, fps, frameTime, mspt, playerX, playerY, playerZ, loadedChunks);
             
             dataWriter.write(dataLine);
             dataWriter.flush();
@@ -197,6 +219,7 @@ public class LightweightMetrics {
         LOGGER.info("===== 性能指标报告 =====");
         LOGGER.info(String.format("平均帧率: %.2f FPS (min: %.2f, max: %.2f)", averageFps, minFps, maxFps));
         LOGGER.info(String.format("平均帧时间: %.2f ms (min: %.2f, max: %.2f)", averageFrameTime, minFrameTime, maxFrameTime));
+        LOGGER.info(String.format("平均MSPT: %.2f ms (min: %.2f, max: %.2f)", averageMspt, minMspt, maxMspt));
         LOGGER.info("=======================");
     }
 } 
