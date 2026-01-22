@@ -27,11 +27,15 @@ build/
 mvnw
 mvnw.cmd
 
-# 忽略 Java 编译产生的 .class 文件 (通常 target 已经涵盖)
+# 忽略 Java 编译产生的 .class 文件
 *.class
 
-# 忽略 JAR, WAR, EAR, ZIP 等打包文件 (通常 target 已经涵盖)
+# 忽略 JAR 文件（构建产物和依赖）
+# 但保留 Gradle Wrapper JAR，因为它需要被版本控制
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# 忽略 WAR, EAR, ZIP 等打包文件
 *.war
 *.ear
 *.zip
@@ -105,9 +109,8 @@ yarn-error.log
 
 # 如果使用了 Gradle，可以忽略 Gradle 构建目录和缓存
 .gradle/
-/build/  # 再次提及，以防有些项目使用 build 代替 target
-gradle-wrapper.jar
-gradle-wrapper.properties
+# 注意：gradle-wrapper.jar 和 gradle-wrapper.properties 应该被版本控制
+# 已在上面通过 !gradle/wrapper/gradle-wrapper.jar 明确保留
 *.lockfile
 
 # 忽略其他可能的构建工具或框架的输出目录或临时文件
