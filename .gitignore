@@ -1,6 +1,7 @@
 # 忽略 Maven 构建产生的 target 目录
-/target/
-/build/  # 有些项目可能会使用 build 目录替代 target，也一并忽略
+target/
+# 忽略构建目录（Gradle/Maven 等构建工具产生的 build 目录）
+build/
 
 # 忽略 Maven 项目的 IDE 相关文件 (根据你常用的 IDE 选择性添加)
 
