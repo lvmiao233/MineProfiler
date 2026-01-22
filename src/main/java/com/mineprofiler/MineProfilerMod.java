@@ -58,7 +58,7 @@ public class MineProfilerMod implements ClientModInitializer {
                 // 更新性能指标（每tick都更新）
                 if (client.getCurrentFps() > 0) {
                     metrics.updateFps(client.getCurrentFps());
-                    metrics.updateFrameTime(1000.0 / client.getCurrentFps());
+                    // frameTime 现在由 GameRendererMixin 独立测量，不再从FPS反推
                 }
                 
                 // 开始收集指标数据（仅执行一次）

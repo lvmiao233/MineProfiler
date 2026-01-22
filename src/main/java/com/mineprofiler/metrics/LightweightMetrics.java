@@ -33,6 +33,10 @@ public class LightweightMetrics {
     private double minFrameTime = Double.MAX_VALUE;
     private double maxFrameTime = 0.0;
     
+    // 采样窗口内的帧时间累计（用于计算窗口平均值）
+    private double frameTimeSumInWindow = 0.0;
+    private int frameTimeCountInWindow = 0;
+    
     // MSPT相关指标
     private float currentMspt = 0.0f;
     private float averageMspt = 0.0f;
@@ -78,9 +82,14 @@ public class LightweightMetrics {
         this.minFrameTime = Math.min(minFrameTime, frameTimeMs);
         this.maxFrameTime = Math.max(maxFrameTime, frameTimeMs);
         
-        // 更新平均值
+        // 累计到采样窗口（用于计算这一秒内的平均渲染耗时）
+        frameTimeSumInWindow += frameTimeMs;
+        frameTimeCountInWindow++;
+        
+        // 更新全局平均值
         double delta = frameTimeMs - averageFrameTime;
-        averageFrameTime += delta / frameCount;
+        int totalCount = frameCount > 0 ? frameCount : 1;
+        averageFrameTime += delta / totalCount;
     }
     
     /**
@@ -189,7 +198,16 @@ public class LightweightMetrics {
             // 收集数据
             long timestamp = System.currentTimeMillis();
             double fps = currentFps;
-            double frameTime = currentFrameTime;
+            
+            // 计算这一秒内的平均渲染耗时
+            double frameTime = (frameTimeCountInWindow > 0) 
+                ? (frameTimeSumInWindow / frameTimeCountInWindow) 
+                : currentFrameTime;
+            
+            // 重置窗口统计
+            frameTimeSumInWindow = 0.0;
+            frameTimeCountInWindow = 0;
+            
             float mspt = currentMspt;
             
             // 收集玩家位置信息
@@ -197,9 +215,11 @@ public class LightweightMetrics {
             double playerY = client.player.getY();
             double playerZ = client.player.getZ();
             
-            // 获取已加载区块数量
-            int renderDistance = client.options.getViewDistance().getValue();
-            int loadedChunks = (2 * renderDistance + 1) * (2 * renderDistance + 1);
+            // 获取真实已加载区块数量
+            int loadedChunks = 0;
+            if (client.world != null) {
+                loadedChunks = client.world.getChunkManager().getLoadedChunkCount();
+            }
             
             // 写入CSV行
             String dataLine = String.format("%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n",

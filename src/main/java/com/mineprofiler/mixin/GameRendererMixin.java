@@ -10,19 +10,33 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * 游戏渲染器的Mixin
- * 简化版本，只用来记录渲染开始时间
+ * 测量每帧的渲染耗时（render函数执行时间）
  */
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
-    private static long lastFrameTime = 0;
+    // 渲染开始时间（纳秒）
+    private static long renderStartTime = 0;
     
     /**
-     * 在每帧渲染前注入
-     * 注意：Minecraft 1.21.5中render方法的签名已更改
+     * 在每帧渲染前注入，记录开始时间
      */
     @Inject(method = "render", at = @At("HEAD"))
     private void onRenderStart(RenderTickCounter tickCounter, boolean tick, CallbackInfo ci) {
-        // 记录帧时间，性能指标收集功能已移至主类中实现
-        lastFrameTime = System.currentTimeMillis();
+        renderStartTime = System.nanoTime();
     }
-} 
+    
+    /**
+     * 在每帧渲染后注入，计算渲染耗时并更新指标
+     */
+    @Inject(method = "render", at = @At("RETURN"))
+    private void onRenderEnd(RenderTickCounter tickCounter, boolean tick, CallbackInfo ci) {
+        if (renderStartTime > 0) {
+            double renderTimeMs = (System.nanoTime() - renderStartTime) / 1_000_000.0;
+            if (MineProfilerMod.getInstance() != null && 
+                MineProfilerMod.getInstance().getMetrics() != null) {
+                MineProfilerMod.getInstance().getMetrics().updateFrameTime(renderTimeMs);
+            }
+        }
+    }
+}
+ 
